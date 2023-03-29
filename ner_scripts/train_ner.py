@@ -43,9 +43,12 @@ from transformers import XLMRobertaConfig
 from transformers import XLMRobertaForTokenClassification
 from transformers import XLMRobertaTokenizer
 
-from .ner_utils import convert_examples_to_features
-from .ner_utils import get_labels
-from .ner_utils import read_examples_from_file
+from ner_utils import convert_examples_to_features
+from ner_utils import get_labels
+from ner_utils import read_examples_from_file
+from ner_utils import write_csv
+
+import wandb 
 
 try:
     from torch.utils.tensorboard import SummaryWriter
@@ -223,6 +226,7 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
                         )
                         for key, value in results.items():
                             tb_writer.add_scalar("eval_{}".format(key), value, global_step)
+                            wandb.log({f"eval_{key}": value})
                     tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
                     tb_writer.add_scalar(
                         "loss", (tr_loss - logging_loss) / args.logging_steps, global_step
@@ -251,6 +255,11 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
                     torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
                     logger.info("Saving optimizer and scheduler states to %s", output_dir)
 
+                    wandb.log({
+                        f"lr": scheduler.get_lr()[0],
+                        f"train_loss": tr_loss / args.logging_steps
+                    })
+
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
                 break
@@ -260,6 +269,9 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
 
     if args.local_rank in [-1, 0]:
         tb_writer.close()
+    
+    for i in os.listdir(args.output_dir):
+        wandb.save(f"{args.output_dir}/{i}")
 
     return global_step, tr_loss / global_step
 
@@ -344,6 +356,8 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, mode, prefix=""
     logger.info("***** Eval results %s *****", prefix)
     for key in sorted(results.keys()):
         logger.info("  %s = %s", key, str(results[key]))
+    
+    wandb.log(results)
 
     return results, preds_list
 
@@ -561,7 +575,20 @@ def main():
     parser.add_argument("--server_ip", type=str, default="", help="For distant debugging.")
     parser.add_argument("--server_port", type=str, default="", help="For distant debugging.")
 
+    parser.add_argument("--csv_file", type=str, default="results.csv", help="for logging results.")
+    parser.add_argument("--lang_seed" type=str, default="", help="lang and seed.")
+
     args = parser.parse_args()
+
+    wandb.init(project="<Project Name>", entity="<TEAM NAME>", config = {
+        "max length": os.getenv('MAX_LENGTH'),
+        "adapter model": os.getenv('ADAPTER_MODEL'),
+        "output dir": os.getenv('OUTPUT_DIR'),
+        "batch size": os.getenv('BATCH_SIZE'),
+        "epochs": os.getenv('NUM_EPOCHS'),
+        "save steps": os.getenv('SAVE_STEPS'),
+        "seed": os.getenv('SEED'),
+    })
 
     if (
         os.path.exists(args.output_dir)
@@ -718,6 +745,8 @@ def main():
             if global_step:
                 result = {"{}_{}".format(global_step, k): v for k, v in result.items()}
             results.update(result)
+
+        write_csv(results=results, lang_seed=args.lang_seed, op="eval", file_path=args.csv_file)
         output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
         with open(output_eval_file, "w") as writer:
             for key in sorted(results.keys()):
@@ -733,6 +762,7 @@ def main():
             args, model, tokenizer, labels, pad_token_label_id, mode="test"
         )
         # Save results
+        write_csv(results=results, lang_seed=args.lang_seed, op="test", file_path=args.csv_file)
         output_test_results_file = os.path.join(args.output_dir, "test_results.txt")
         with open(output_test_results_file, "w") as writer:
             for key in sorted(result.keys()):
@@ -755,7 +785,7 @@ def main():
                             "Maximum sequence length exceeded: No prediction for '%s'.",
                             line.split()[0],
                         )
-
+    wandb.finish(exit_code=0)
     return results
 
 

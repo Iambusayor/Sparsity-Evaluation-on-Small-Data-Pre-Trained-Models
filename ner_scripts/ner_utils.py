@@ -18,6 +18,7 @@ Named entity recognition fine-tuning: utilities to work with CoNLL-2003 task.
 """
 import logging
 import os
+import csv
 from typing import Dict
 
 import numpy as np
@@ -73,7 +74,9 @@ def read_examples_from_file(data_dir, mode):
                 if words:
                     examples.append(
                         InputExample(
-                            guid="{}-{}".format(mode, guid_index), words=words, labels=labels
+                            guid="{}-{}".format(mode, guid_index),
+                            words=words,
+                            labels=labels,
                         )
                     )
                     guid_index += 1
@@ -89,7 +92,9 @@ def read_examples_from_file(data_dir, mode):
                     labels.append("O")
         if words:
             examples.append(
-                InputExample(guid="{}-{}".format(mode, guid_index), words=words, labels=labels)
+                InputExample(
+                    guid="{}-{}".format(mode, guid_index), words=words, labels=labels
+                )
             )
     return examples
 
@@ -122,7 +127,7 @@ def convert_examples_to_features(
     label_map = {label: i for i, label in enumerate(label_list)}
 
     features = []
-    for (ex_index, example) in enumerate(examples):
+    for ex_index, example in enumerate(examples):
         # print(ex_index, len(example.words))
         if ex_index % 10000 == 0:
             logger.info("Writing example %d of %d", ex_index, len(examples))
@@ -133,7 +138,9 @@ def convert_examples_to_features(
             word_tokens = tokenizer.tokenize(word)
             tokens.extend(word_tokens)
             # Use the real label id for the first token of the word, and padding ids for the remaining tokens
-            label_ids.extend([label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1))
+            label_ids.extend(
+                [label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1)
+            )
 
         # Account for [CLS] and [SEP] with "- 2" and with "- 3" for RoBERTa.
         special_tokens_count = 3 if sep_token_extra else 2
@@ -186,7 +193,9 @@ def convert_examples_to_features(
         padding_length = max_seq_length - len(input_ids)
         if pad_on_left:
             input_ids = ([pad_token] * padding_length) + input_ids
-            input_mask = ([0 if mask_padding_with_zero else 1] * padding_length) + input_mask
+            input_mask = (
+                [0 if mask_padding_with_zero else 1] * padding_length
+            ) + input_mask
             segment_ids = ([pad_token_segment_id] * padding_length) + segment_ids
             label_ids = ([pad_token_label_id] * padding_length) + label_ids
         else:
@@ -231,7 +240,17 @@ def get_labels(path=None):
             labels = ["O"] + labels
         return labels
     else:
-        return ["O", "B-DATE", "I-DATE", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC"]
+        return [
+            "O",
+            "B-DATE",
+            "I-DATE",
+            "B-PER",
+            "I-PER",
+            "B-ORG",
+            "I-ORG",
+            "B-LOC",
+            "I-LOC",
+        ]
 
 
 class NERDataset(Dataset):
@@ -248,3 +267,24 @@ class NERDataset(Dataset):
 
     def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
         return self.examples[index]
+
+
+def write_csv(results, lang_seed, op, file_path):
+    if not os.path.exists(file_path):
+        # If file doesn't exist, create it with headers
+        with open(file_path, "w", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(
+                ["loss", "precision", "recall", "f1", "eval/test", "lang_seed"]
+            )
+            logger.info(f"{file_path} created with headers")
+
+    del results["report"]
+    results["eval/test"] = op
+    results["lang_seed"] = lang_seed
+
+    # Add rows to the file
+    with open(file_path, "a", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(results.values())
+        logger.info(f"Results logged to csv file at path {file_path}")
