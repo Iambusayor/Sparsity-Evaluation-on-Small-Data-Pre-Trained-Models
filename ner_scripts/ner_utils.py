@@ -269,19 +269,28 @@ class NERDataset(Dataset):
         return self.examples[index]
 
 
-def write_csv(results, lang_seed, op, file_path):
+def write_csv(results, lang_seed, op, file_path, run_name):
     if not os.path.exists(file_path):
         # If file doesn't exist, create it with headers
         with open(file_path, "w", newline="") as file:
             writer = csv.writer(file)
             writer.writerow(
-                ["loss", "precision", "recall", "f1", "eval/test", "lang_seed"]
+                [
+                    "loss",
+                    "precision",
+                    "recall",
+                    "f1",
+                    "eval/test",
+                    "lang_seed",
+                    "run_name",
+                ]
             )
             logger.info(f"{file_path} created with headers")
 
     del results["report"]
     results["eval/test"] = op
     results["lang_seed"] = lang_seed
+    results["run_name"] = run_name
 
     # Add rows to the file
     with open(file_path, "a", newline="") as file:

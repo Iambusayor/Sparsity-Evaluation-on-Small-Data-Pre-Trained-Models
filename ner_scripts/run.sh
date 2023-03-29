@@ -48,9 +48,13 @@ do
         --seed $SEED \
         --do_train \
         --do_eval \
-        --do_predict
-        --csv_file results.csv
-        --lang_seed "{$i}_{SEED}"
+        --do_predict \
+        --csv_file results.csv \
+        --lang_seed "{$i}_{$SEED}" \
+        --wandb_entity_name compression_on_afriberta\
+        --wanb_project_name distillation
+
+
 
     done
 done
