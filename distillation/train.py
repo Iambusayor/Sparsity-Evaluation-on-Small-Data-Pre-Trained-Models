@@ -42,11 +42,13 @@ from transformers import (
     RobertaTokenizer,
 )
 from utils import git_log, init_gpu_params, logger, set_seed
+import wandb
+wandb.init(project=, sync_tensorboard=True, entity='compression_on_afriberta')
 
 
 MODEL_CLASSES = {
     "distilbert": (DistilBertConfig, DistilBertForMaskedLM, DistilBertTokenizer),
-    "roberta": (RobertaConfig, RobertaForMaskedLM, RobertaTokenizer),
+    "roberta": (XLMRobertaConfig, XLMRobertaForMaskedLM, XLMRobertaTokenizer),
     "bert": (BertConfig, BertForMaskedLM, BertTokenizer),
     "gpt2": (GPT2Config, GPT2LMHeadModel, GPT2Tokenizer),
 }
@@ -255,7 +257,7 @@ def main():
         special_tok_ids[tok_name] = tokenizer.all_special_ids[idx]
     logger.info(f"Special tokens {special_tok_ids}")
     args.special_tok_ids = special_tok_ids
-    args.max_model_input_size = tokenizer.max_model_input_sizes[args.teacher_name]
+    args.max_model_input_size = 512#tokenizer.max_model_input_sizes[args.teacher_name]
 
     # DATA LOADER #
     logger.info(f"Loading data from {args.data_file}")
@@ -319,6 +321,6 @@ def main():
     distiller.train()
     logger.info("Let's go get some drinks.")
 
-
 if __name__ == "__main__":
     main()
+    wandb.finish()

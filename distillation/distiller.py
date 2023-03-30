@@ -31,6 +31,7 @@ from tqdm import tqdm
 
 from transformers import get_linear_schedule_with_warmup
 from utils import logger
+import wandb
 
 
 try:
@@ -38,6 +39,7 @@ try:
 except ImportError:
     from tensorboardX import SummaryWriter
 
+wandb.init(project=, sync_tensorboard=True, entity='compression_on_afriberta')
 
 class Distiller:
     def __init__(
