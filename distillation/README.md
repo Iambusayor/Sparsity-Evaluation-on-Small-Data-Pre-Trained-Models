@@ -1,1 +1,1 @@
-# Knowledge Distillation on Small Data-Pretrained Language Models
+# Knowledge Distillation on Small-Data Pre-Trained Language Models
