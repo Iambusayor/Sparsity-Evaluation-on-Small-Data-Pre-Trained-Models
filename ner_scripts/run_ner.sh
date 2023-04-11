@@ -9,31 +9,35 @@ experiment_name=afriberta-distil
 
 # Evaluate on Named Entity Recognition
 
-ner_model_path="${experiment_name}_ner_model"
-tokenizer_path=afriberta_tokenizer_70k # specify tokenizer path or huggingface name
+#ner_model_path="${experiment_name}_ner_model"
+LLM_path=$PWD/distillation/distil-4-4-gen
+tokenizer_path=castorini/afriberta_large # specify tokenizer path or huggingface name
 
-mkdir $PWD/$ner_model_path
+# mkdir $PWD/$ner_model_path
+# mkdir $PWD/ner_results
+output_dir=$PWD/General_AH4_HL4
+mkdir $output_dir
 
 # copy pretrained model from original folder to ner_model_path
-cp $PWD/experiments/$experiment_name/pytorch_model.bin $PWD/$ner_model_path/pytorch_model.bin
-cp $PWD/experiments/$experiment_name/config.json $PWD/$ner_model_path/config.json
+cp $LLM_path/pytorch_model.bin $output_dir/pytorch_model.bin
+cp $LLM_path/config.json $output_dir/config.json
 
 MAX_LENGTH=164
-MODEL_PATH=$ner_model_path
+MODEL_PATH=$output_dir
 BATCH_SIZE=16
 NUM_EPOCHS=50
 SAVE_STEPS=1000
 TOK_PATH=$tokenizer_path
-declare -a arr=("amh" "hau" "ibo" "kin" "lug" "luo" "pcm" "swa" "wol" "yor")
+declare -a arr=("hau" "ibo" "kin" "lug" "luo" "pcm" "swa" "wol" "yor")
 
-for SEED in 1 2 3 4 5
+for SEED in 1 3  5
 do
-    output_dir=ner_results/"${experiment_name}_ner_results_${SEED}"
-    mkdir $PWD/$output_dir
+    # output_dir=ner_results/"${experiment_name}_${SEED}"
+    # mkdir $PWD/$output_dir
 
     for i in "${arr[@]}"
     do
-        OUTPUT_DIR=$PWD/$output_dir/"$i"
+        OUTPUT_DIR=$output_dir/"${i}_${SEED}"
         DATA_DIR=ner_data/"$i"
         python ner_scripts/train_ner.py --data_dir $DATA_DIR \
         --model_type nil \
@@ -49,12 +53,10 @@ do
         --do_train \
         --do_eval \
         --do_predict \
-        --csv_file results.csv \
-        --lang_seed "{$i}_{$SEED}" \
+        --csv_file general-AH4-HL4_results.csv \
+        --lang_seed "${i}_${SEED}" \
         --wandb_entity_name compression_on_afriberta\
-        --wanb_project_name distillation
-
-
+        --wandb_project_name general-distil-ner
 
     done
 done

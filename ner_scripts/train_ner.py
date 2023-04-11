@@ -677,14 +677,15 @@ def main():
         help="Entity name for wandb project.",
     )
     parser.add_argument(
-        "--wand_project_name", type=str, default="", help="wandb project name"
+        "--wandb_project_name", type=str, default="", help="wandb project name"
     )
 
     args = parser.parse_args()
-
+    
     wandb.init(
-        project=args.wand_project_name,
-        entity=args.wand_entity_name,
+        project=args.wandb_project_name,
+        entity=args.wandb_entity_name,
+        sync_tensorboard=True,
         config={
             "max length": os.getenv("MAX_LENGTH"),
             "adapter model": os.getenv("ADAPTER_MODEL"),
@@ -889,7 +890,7 @@ def main():
         )
         # Save results
         write_csv(
-            results=results,
+            results=result,
             lang_seed=args.lang_seed,
             op="test",
             file_path=args.csv_file,

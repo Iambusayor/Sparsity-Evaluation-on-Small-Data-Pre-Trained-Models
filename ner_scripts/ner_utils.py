@@ -287,7 +287,7 @@ def write_csv(results, lang_seed, op, file_path, run_name):
             )
             logger.info(f"{file_path} created with headers")
 
-    del results["report"]
+    # del results["report"]
     results["eval/test"] = op
     results["lang_seed"] = lang_seed
     results["run_name"] = run_name
